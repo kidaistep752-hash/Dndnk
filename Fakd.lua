@@ -167,10 +167,17 @@ MM2Content.ZIndex = 21
 local MM2Layout = Instance.new("UIListLayout", MM2Content)
 MM2Layout.Padding = UDim.new(0, 5)
 
+-- ОБНОВЛЕННЫЙ ТРИГГЕР СИНХРОНИЗАЦИИ ОКON
 OpenButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    if not MainFrame.Visible then MM2Window.Visible = false end
+    -- Если мод MM2 включен, его окно будет открываться и закрываться вместе с главным меню
+    if Config.MM2Mod then
+        MM2Window.Visible = MainFrame.Visible
+    else
+        MM2Window.Visible = false
+    end
 end)
+
 -- ====================================================================
 --  PART 3: NAVIGATION TABS & GENERIC BUTTON CODE
 -- ====================================================================
@@ -588,6 +595,175 @@ Instance.new("UICorner", RejoinBtn).CornerRadius = UDim.new(0, 5)
 local PrivateBtn = Instance.new("TextButton", pOther)
 PrivateBtn.Size = UDim2.new(1, 0, 0, 30)
 PrivateBtn.BackgroundColor3 = Color3.fromRGB(22, 14, 25)
+-- ====================================================================
+--  PART 5.1: VISUAL PALETTE, GAME MM2 CONTROL & TRACKER (REPLACEMENT)
+-- ====================================================================
+
+-- 1. Наполнение VISUAL TAB (Раздвижной ESP и кнопки выбора цветов)
+local EspWrapperFrame = Instance.new("Frame", pVisual)
+EspWrapperFrame.Size = UDim2.new(1, 0, 0, 30)
+EspWrapperFrame.BackgroundTransparency = 1
+EspWrapperFrame.AutomaticSize = Enum.AutomaticSize.Y
+Instance.new("UIListLayout", EspWrapperFrame).Padding = UDim.new(0, 4)
+
+local EspContainer = Instance.new("Frame", EspWrapperFrame)
+EspContainer.Size = UDim2.new(1, 0, 0, 30)
+EspContainer.BackgroundTransparency = 1
+
+local EspToggle = Instance.new("TextButton", EspContainer)
+EspToggle.Size = UDim2.new(1, -30, 1, 0)
+EspToggle.Position = UDim2.new(0, 30, 0, 0)
+EspToggle.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+EspToggle.Text = "Master ESP [OFF]"
+EspToggle.TextColor3 = Color3.fromRGB(150, 150, 150)
+EspToggle.TextSize = 13
+Instance.new("UICorner", EspToggle).CornerRadius = UDim.new(0, 5)
+
+local EspArrow = Instance.new("TextButton", EspContainer)
+EspArrow.Size = UDim2.new(0, 25, 1, 0)
+EspArrow.BackgroundTransparency = 1
+EspArrow.Text = "▶"
+EspArrow.TextColor3 = Color3.fromRGB(186, 85, 211)
+EspArrow.TextSize = 13
+
+local PaletteFrame = Instance.new("Frame", EspWrapperFrame)
+PaletteFrame.Size = UDim2.new(1, 0, 0, 26)
+PaletteFrame.BackgroundTransparency = 1
+PaletteFrame.Visible = false
+
+local PalLayout = Instance.new("UIListLayout", PaletteFrame)
+PalLayout.FillDirection = Enum.FillDirection.Horizontal
+PalLayout.Padding = UDim.new(0, 5)
+
+local function createPaletteBtn(name, colorRGB)
+    local CBtn = Instance.new("TextButton", PaletteFrame)
+    CBtn.Size = UDim2.new(0.31, 0, 1, 0)
+    CBtn.BackgroundColor3 = colorRGB
+    CBtn.Text = name
+    CBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    CBtn.Font = Enum.Font.SourceSansBold
+    CBtn.TextSize = 12
+    Instance.new("UICorner", CBtn).CornerRadius = UDim.new(0, 4)
+    CBtn.MouseButton1Click:Connect(function() 
+        Config.ESPColor = name 
+        saveSettings() 
+    end)
+end
+createPaletteBtn("RED", Color3.fromRGB(255, 0, 0))
+createPaletteBtn("BLUE", Color3.fromRGB(0, 100, 255))
+createPaletteBtn("WHITE", Color3.fromRGB(255, 255, 255))
+
+EspArrow.MouseButton1Click:Connect(function()
+    PaletteFrame.Visible = not PaletteFrame.Visible
+    EspArrow.Text = PaletteFrame.Visible and "▼" or "▶"
+end)
+
+EspToggle.MouseButton1Click:Connect(function()
+    Config.ESPToggle = not Config.ESPToggle
+    saveSettings()
+    EspToggle.Text = "Master ESP " .. (Config.ESPToggle and "[ON]" or "[OFF]")
+    EspToggle.TextColor3 = Config.ESPToggle and Color3.fromRGB(186, 85, 211) or Color3.fromRGB(150, 150, 150)
+end)
+
+-- 2. Наполнение GAME TAB (MM2 КНОПКА С АВТО-ОБНОВЛЕНИЕМ ОКНА РОЛЕЙ)
+local MM2Btn = Instance.new("TextButton", pGame)
+MM2Btn.Size = UDim2.new(1, 0, 0, 30)
+MM2Btn.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+MM2Btn.Text = "Murder Mystery 2 Mod [OFF]"
+MM2Btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+MM2Btn.TextSize = 13
+Instance.new("UICorner", MM2Btn).CornerRadius = UDim.new(0, 5)
+
+local function updateMM2Dashboard()
+    for _, child in pairs(MM2Content:GetChildren()) do
+        if child:IsA("TextLabel") then child:Destroy() end
+    end
+    if not Config.MM2Mod then return end
+    local murdererFound = false
+    local sheriffFound = false
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            local holdsKnife = p.Character:FindFirstChild("Knife") or p.Backpack:FindFirstChild("Knife")
+            local holdsGun = p.Character:FindFirstChild("Gun") or p.Backpack:FindFirstChild("Gun")
+            if holdsKnife then
+                murdererFound = true
+                local mLabel = Instance.new("TextLabel", MM2Content)
+                mLabel.Size = UDim2.new(1, 0, 0, 20)
+                mLabel.BackgroundTransparency = 1
+                mLabel.Text = "🔴 Murder: " .. p.Name
+                mLabel.TextColor3 = Color3.fromRGB(255, 65, 65)
+                mLabel.Font = Enum.Font.SourceSansBold
+                mLabel.TextSize = 13
+            elseif holdsGun then
+                sheriffFound = true
+                local sLabel = Instance.new("TextLabel", MM2Content)
+                sLabel.Size = UDim2.new(1, 0, 0, 20)
+                sLabel.BackgroundTransparency = 1
+                sLabel.Text = "🔵 Sheriff: " .. p.Name
+                sLabel.TextColor3 = Color3.fromRGB(65, 150, 255)
+                sLabel.Font = Enum.Font.SourceSansBold
+                sLabel.TextSize = 13
+            end
+        end
+    end
+    if not murdererFound then
+        local noM = Instance.new("TextLabel", MM2Content)
+        noM.Size = UDim2.new(1, 0, 0, 20)
+        noM.BackgroundTransparency = 1
+        noM.Text = "🔴 Murder: Searching..."
+        noM.TextColor3 = Color3.fromRGB(120, 100, 100)
+        noM.Font = Enum.Font.SourceSans
+        noM.TextSize = 12
+    end
+    if not sheriffFound then
+        local noS = Instance.new("TextLabel", MM2Content)
+        noS.Size = UDim2.new(1, 0, 0, 20)
+        noS.BackgroundTransparency = 1
+        noS.Text = "🔵 Sheriff: Searching..."
+        noS.TextColor3 = Color3.fromRGB(100, 110, 120)
+        noS.Font = Enum.Font.SourceSans
+        noS.TextSize = 12
+    end
+end
+
+task.spawn(function()
+    while task.wait(2) do
+        if Config.MM2Mod then updateMM2Dashboard() end
+    end
+end)
+
+-- ИСПРАВЛЕННЫЙ ТРИГГЕР СИНХРОНИЗАЦИИ ДЛЯ КНОПКИ ШЕСТЕРЕНКИ ВМЕСТО ЧАСТИ 2
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+    if Config.MM2Mod then
+        MM2Window.Visible = MainFrame.Visible
+    else
+        MM2Window.Visible = false
+    end
+end)
+
+MM2Btn.MouseButton1Click:Connect(function()
+    Config.MM2Mod = not Config.MM2Mod
+    saveSettings()
+    MM2Btn.Text = "Murder Mystery 2 Mod " .. (Config.MM2Mod and "[ON]" or "[OFF]")
+    MM2Btn.TextColor3 = Config.MM2Mod and Color3.fromRGB(186, 85, 211) or Color3.fromRGB(150, 150, 150)
+    MM2Window.Visible = Config.MM2Mod
+    if Config.MM2Mod then updateMM2Dashboard() end
+end)
+
+-- 3. Наполнение OTHER TAB
+local RejoinBtn = Instance.new("TextButton", pOther)
+RejoinBtn.Size = UDim2.new(1, 0, 0, 30)
+RejoinBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+RejoinBtn.Text = "Rejoin Server"
+RejoinBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+RejoinBtn.TextSize = 13
+Instance.new("UICorner", RejoinBtn).CornerRadius = UDim.new(0, 5)
+
+local PrivateBtn = Instance.new("TextButton", pOther)
+PrivateBtn.Size = UDim2.new(1, 0, 0, 30)
+PrivateBtn.BackgroundColor3 = Color3.fromRGB(22, 14, 25)
 PrivateBtn.BorderSizePixel = 1
 PrivateBtn.BorderColor3 = Color3.fromRGB(186, 85, 211)
 PrivateBtn.Text = "Private Matchmaking"
@@ -599,11 +775,8 @@ Instance.new("UICorner", PrivateBtn).CornerRadius = UDim.new(0, 5)
 RejoinBtn.MouseButton1Click:Connect(function()
     saveSettings()
     pcall(function()
-        if #Players:GetPlayers() <= 1 then 
-            TeleportService:Teleport(game.PlaceId, LocalPlayer, nil)
-        else 
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer, nil) 
-        end
+        if #Players:GetPlayers() <= 1 then TeleportService:Teleport(game.PlaceId, LocalPlayer, nil)
+        else TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer, nil) end
     end)
 end)
 
@@ -612,18 +785,16 @@ PrivateBtn.MouseButton1Click:Connect(function()
     PrivateBtn.TextColor3 = Color3.fromRGB(186, 85, 211)
     saveSettings()
     task.wait(0.5)
-    pcall(function() 
-        TeleportService:Teleport(game.PlaceId, nil, nil) 
-    end)
+    pcall(function() TeleportService:Teleport(game.PlaceId, nil, nil) end)
 end)
 
--- Справка во вкладке Settings
 local infoLabel = Instance.new("TextLabel", pSettings)
 infoLabel.Size = UDim2.new(1, 0, 0, 30)
 infoLabel.BackgroundTransparency = 1
 infoLabel.Text = "All settings auto-save to JSON file"
 infoLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
 infoLabel.TextSize = 12
+
 -- ====================================================================
 --  PART 6: FINAL TICK ENGINE, CFRAME FLY, FIXED FLING & ENEMY ESP
 -- ====================================================================
